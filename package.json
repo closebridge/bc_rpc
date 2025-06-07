@@ -4,7 +4,7 @@
   "description": "a",
   "main": "index.ts",
   "scripts": {
-    "test": "npx tsx --env-file=config.env ./index.ts"
+    "test": "clear && node --env-file=config.env index.js"
   },
   "author": "",
   "license": "ISC",
