@@ -79,7 +79,42 @@ async function checkRobloxUniverse(universeId, placeId, setting, miscellaneous) 
     }
 }
 
-checkRobloxUniverse(6708394684, 122757165339913, 2, ['sick open cloud gng', "hello world!"])
+// checkRobloxUniverse(6708394684, 122757165339913, 2, ['sick open cloud gng', "hello world!"])
+
+// extremely sensitive area, please dont stupidly put your credential in here when commiting, future me.
+async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonalUserId) {
+
+    // TODO: make login attempt using axios with needed headers, then capture Cookies from there
+    // (or for now, we paste every cookies, and craft them later on...)
+
+
+    axios.post('https://presence.roblox.com/v1/presence/users', {"userIds": [robloxPersonalUserId]},{
+        headers: {
+            "content-type": "application/json",
+            // "Cookie": "",
+            // "Cookie": "// consult to 'v1/presence Cookie header properties' file for detail",
+            "origin": "https://www.roblox.com",
+            "priority": "u=1, i",
+            "referer": "https://www.roblox.com/",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-site"
+        }
+    }).then(res => {
+        console.log(res.data)
+        if (res.status === 200) {
+            if (res.data.universeId === experienceId) {
+                return true
+            } else {
+                throw new Error("users is not in the designated experience/universe. please double check!");
+            }
+        }
+    }).catch(err => {
+        throw new Error("error at presence.roblox.com: " + err);
+    })
+}
+
+checkIfWithinTheDesignatedExperience(12345678, 126722907)
+
 
 async function checkForProfanity(message) { // true if usable, false if flagged [boolean, message/flagged]
     try {
@@ -111,18 +146,18 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
     }
     // when making http request, please include "x-api-key" as {process.env.PERSONAL_OPENAPI} in headers for authorization
 
-    if ((await checkRobloxUniverse(robloxExperienceId)).length > 0 
-    && (await getRobloxPlayer(robloxPersonalUserId, robloxDummyId)).length > 0) {
-        return true
-    }
+    // if ((await checkRobloxUniverse(robloxExperienceId)).length > 0 
+    // && (await getRobloxPlayer(robloxPersonalUserId, robloxDummyId)).length > 0) {
+    //     return true
+    // }
 
-    // verify each arguments' (users, experience) type (check)
-    // verify each arguments' (users, experience) validity using API
+    // verify each arguments' (users, experience) type ++++++
+    // verify each arguments' (users, experience) validity using API ++++++
     // check if user has joined the designated experience
     // long polling (establish connection to experience)
     // establish connection to user's Discord (for activities), returns change once updated 
     // process each activities (music, game, screen sharing, custom rpc...)
-    // send to profanity checker (censor if needed) (check)
+    // send to profanity checker (censor if needed) ++++++
     // send out processed data to dummy's experience description
     // send out update to place's name in experience (2 total, take turns for each activities (TAKE TURN AS IN RENAME UNUSED ONE))
     // use TeleportService to send player to the new updated place
