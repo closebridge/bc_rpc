@@ -4,13 +4,16 @@
   "description": "a",
   "main": "index.ts",
   "scripts": {
-    "test": "clear && node --env-file=config.env index.js"
+    "test": "clear && node --env-file=config.env desktopclient/index.js",
+    "ui.login": "clear && echo 'displaying logon page' && electron desktopclient/gui/gui.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.9.0",
     "dotenv": "^16.5.0",
+    "electron": "^36.4.0",
+    "electron-builder": "^26.0.12",
     "tsx": "^4.19.4"
   },
   "devDependencies": {

@@ -78,20 +78,27 @@ async function checkRobloxUniverse(universeId, placeId, setting, miscellaneous) 
 
     }
 }
-
 // checkRobloxUniverse(6708394684, 122757165339913, 2, ['sick open cloud gng', "hello world!"])
+
+
+function notStealingUsersRobloxCredential(type) {
+    let finalCookie = ''
+
+    return finalCookie
+}
 
 // extremely sensitive area, please dont stupidly put your credential in here when commiting, future me.
 async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonalUserId) {
 
     // TODO: make login attempt using axios with needed headers, then capture Cookies from there
-    // (or for now, we paste every cookies, and craft them later on...)
+    // ^^^ so change of plan, we can both summon a roblox.com login page window, let user logon (also solve captcha), and we will store credentials from there; or scrapping credentials from browser's cookie (as its own function called notStealingUsersRobloxCredential (pun))
+    // (or for now, we store cookie in .env, call them, and craft them later on...)
 
 
     axios.post('https://presence.roblox.com/v1/presence/users', {"userIds": [robloxPersonalUserId]},{
         headers: {
             "content-type": "application/json",
-            // "Cookie": "",
+            "Cookie": process.env.PERSONAL_COOKIE,
             // "Cookie": "// consult to 'v1/presence Cookie header properties' file for detail",
             "origin": "https://www.roblox.com",
             "priority": "u=1, i",
@@ -165,6 +172,7 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
     // TODO:
     // add check if experience/universe's creator is the same as "robloxPersonalUserId"
     // add warning if experience's serverSize is more than 1 && not privated
+    // store, encrypt saved credential using user-held password?
 }
 // console.log(getRobloxPlace(1, 2))
 // console.log(process.env.PERSONAL_OPENAPI);
