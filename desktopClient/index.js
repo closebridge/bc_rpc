@@ -124,7 +124,7 @@ async function notStealingUsersRobloxCredential(type) {
 
                 setTimeout(() => {
                     window.webContents.close();
-                }, 4500);
+                }, 4000);
 
                     try {
                 const sessionCookies = session.defaultSession.cookies;
@@ -178,9 +178,9 @@ async function notStealingUsersRobloxCredential(type) {
                         const underText = extLoginBanner.querySelector('#extLBP_lowerText');
                         // const img = extLoginBanner.querySelector('#extLBP_img'); // unused
 
-                        extLoginBanner.style.outline = '2px solid rgb(2, 99, 2)';
+                        extLoginBanner.style.border = '4px solid rgb(2, 99, 2)';
                         extLoginBanner.style.bottom = '50%';
-                        extLoginBanner.style.transform = 'translateY(50%)';
+                        extLoginBanner.style.translate = 'translateY(50%)';
 
                         headerText.innerText = 'You did it, glad you still remember the password.';
                         underText.innerText = 'This window will close by itself after processing...';
@@ -193,14 +193,14 @@ async function notStealingUsersRobloxCredential(type) {
     return await startLoginPrompt();
 }
 
-app.whenReady().then(async () => {
-    try {
-        const cookies = await notStealingUsersRobloxCredential(false);
-        console.log(cookies); // Should now log the correct cookie output
-    } catch (err) {
-        console.error('Error:', err);
-    }
-});
+// app.whenReady().then(async () => {
+//     try {
+//         const cookies = await notStealingUsersRobloxCredential(false);
+//         console.log(cookies); // Should now log the correct cookie output
+//     } catch (err) {
+//         console.error('Error:', err);
+//     }
+// });
 
 
 // extremely sensitive area, please dont stupidly put your credential in here when commiting, future me.
@@ -210,14 +210,14 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
     // ^^^ so change of plan, we can both summon a roblox.com login page window, let user logon (also solve captcha), and we will store credentials from there; or scrapping credentials from browser's cookie (as its own function called notStealingUsersRobloxCredential (pun))
     // (or for now, we store cookie in .env, call them, and craft them later on...)
 
-    let cookii
-    app.whenReady().then(() => {
-        return notStealingUsersRobloxCredential(false);
-    }).then(resolvedCookii => {
-        cookii = resolvedCookii;
-        console.log(cookii);
+    let cookii = await app.whenReady().then(async () => {
+        try {
+            const cookies = await notStealingUsersRobloxCredential(false);
+            return cookies
+        } catch (err) {
+            console.error('error at collecting cookie', err);
+        }
     });
-    return;
 
     axios.post('https://presence.roblox.com/v1/presence/users', {"userIds": [robloxPersonalUserId]},{
         headers: {
@@ -238,7 +238,10 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
             if (res.data.universeId === experienceId) {
                 return true
             } else {
-                throw new Error("users is not in the designated experience/universe. please double check!");
+                console.error(`
+                    users is not in the designated experience/universe. please double check!\n
+                    lastLocation: ${res.data.userPresences[0].lastLocation}`
+                );
             }
         }
     }).catch(err => {
@@ -246,7 +249,7 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
     })
 }
 
-// checkIfWithinTheDesignatedExperience(12345678, 126722907)
+checkIfWithinTheDesignatedExperience(12345678, 126722907)
 
 
 async function checkForProfanity(message) { // true if usable, false if flagged [boolean, message/flagged]
