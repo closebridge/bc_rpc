@@ -1,6 +1,8 @@
 const { default: axios } = require("axios");
 const { error } = require("console");
 const { createReadStream } = require("fs");
+const { app, BrowserWindow, session, screen } = require("electron");
+const path = require("path");
 
 const robloxGatewayURL = "https://apis.roblox.com/cloud/v2"
 const requestTimingRate = 3000
@@ -81,11 +83,125 @@ async function checkRobloxUniverse(universeId, placeId, setting, miscellaneous) 
 // checkRobloxUniverse(6708394684, 122757165339913, 2, ['sick open cloud gng', "hello world!"])
 
 
-function notStealingUsersRobloxCredential(type) {
-    let finalCookie = ''
+async function notStealingUsersRobloxCredential(type) {
+    let cookieOutput = ''
 
-    return finalCookie
+    function startLoginPrompt() {
+        const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+
+        const window = new BrowserWindow({
+            width: Math.floor(width * 0.3741),
+            height: Math.floor(height * 0.95),
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                preload: path.join(__dirname, 'gui/static/script/preload_loginNoticeBanner.js')
+            },
+        });
+
+        window.loadURL('https://roblox.com');
+        window.webContents.insertCSS(`
+        body {
+            position: static;
+            height: 100vh
+        }
+
+        #externalLoginBannerParent {
+            width: 100%;
+            position: fixed;
+            bottom: 0;
+            z-index: 9999;
+        }`
+        );
+
+        return new Promise((resolve, reject) => {
+            window.webContents.on('did-finish-load', async () => {
+            let currentHref = window.webContents.getURL();
+            console.log(currentHref);
+
+            if (currentHref.toLowerCase() === 'https://www.roblox.com/home') {
+                changeBannerStat();
+
+                setTimeout(() => {
+                    window.webContents.close();
+                }, 4500);
+
+                    try {
+                const sessionCookies = session.defaultSession.cookies;
+                        const cookies = await sessionCookies.get({});
+                        let existingCookiePretext = [
+                            'GuestData',
+                            'RBXEventTrackerV2',
+                            'rbxas',
+                            'RBXSource',
+                            '.ROBLOSECURITY',
+                            'RBXSessionTracker',
+                            'bm_mi',
+                            'bm_sv',
+                            '_t',
+                            'ak_bmsc',
+                            'UnifiedLoggerSession',
+                        ];
+
+                        if (
+                            cookies.length === existingCookiePretext.length ||
+                            cookies.length >= existingCookiePretext.length
+                        ) {
+                            const pretextSet = new Set(existingCookiePretext);
+                            for (const key in cookies) {
+                                const currentKey = cookies[key];
+                                if (pretextSet.has(currentKey.name)) {
+                                    existingCookiePretext = existingCookiePretext.filter(
+                                        (item) => item !== currentKey.name
+                                    );
+                                }
+                            }
+                        } else {
+                            reject(new Error('response header integrity failed (not within length)'));
+                        }
+
+                        cookieOutput = 'rbx-ip2=1;';
+                        cookies.forEach((arr) => {
+                            cookieOutput = `${cookieOutput}${arr.name}=${arr.value};`;
+                        });
+
+                        resolve(cookieOutput);
+                    } catch (err) {
+                        reject(err);
+                    }
+                }
+
+            function changeBannerStat() {
+                window.webContents.executeJavaScript(`
+                        const extLoginBanner = document.getElementById('externalLoginBannerParent');
+                        const headerText = extLoginBanner.querySelector('#extLBP_headerText');
+                        const underText = extLoginBanner.querySelector('#extLBP_lowerText');
+                        // const img = extLoginBanner.querySelector('#extLBP_img'); // unused
+
+                        extLoginBanner.style.outline = '2px solid rgb(2, 99, 2)';
+                        extLoginBanner.style.bottom = '50%';
+                        extLoginBanner.style.transform = 'translateY(50%)';
+
+                        headerText.innerText = 'You did it, glad you still remember the password.';
+                        underText.innerText = 'This window will close by itself after processing...';
+                    `);
+                }
+            });
+        });
+    }
+
+    return await startLoginPrompt();
 }
+
+app.whenReady().then(async () => {
+    try {
+        const cookies = await notStealingUsersRobloxCredential(false);
+        console.log(cookies); // Should now log the correct cookie output
+    } catch (err) {
+        console.error('Error:', err);
+    }
+});
+
 
 // extremely sensitive area, please dont stupidly put your credential in here when commiting, future me.
 async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonalUserId) {
@@ -94,12 +210,21 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
     // ^^^ so change of plan, we can both summon a roblox.com login page window, let user logon (also solve captcha), and we will store credentials from there; or scrapping credentials from browser's cookie (as its own function called notStealingUsersRobloxCredential (pun))
     // (or for now, we store cookie in .env, call them, and craft them later on...)
 
+    let cookii
+    app.whenReady().then(() => {
+        return notStealingUsersRobloxCredential(false);
+    }).then(resolvedCookii => {
+        cookii = resolvedCookii;
+        console.log(cookii);
+    });
+    return;
 
     axios.post('https://presence.roblox.com/v1/presence/users', {"userIds": [robloxPersonalUserId]},{
         headers: {
             "content-type": "application/json",
-            "Cookie": process.env.PERSONAL_COOKIE,
-            // "Cookie": "// consult to 'v1/presence Cookie header properties' file for detail",
+            // @ts-ignore
+            "Cookie": cookii,
+            // "Cookie": "// consult to 'v1:presence Cookie header properties' file for brief",
             "origin": "https://www.roblox.com",
             "priority": "u=1, i",
             "referer": "https://www.roblox.com/",
@@ -109,6 +234,7 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
     }).then(res => {
         console.log(res.data)
         if (res.status === 200) {
+            console.log(res.data)
             if (res.data.universeId === experienceId) {
                 return true
             } else {
@@ -120,7 +246,7 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
     })
 }
 
-checkIfWithinTheDesignatedExperience(12345678, 126722907)
+// checkIfWithinTheDesignatedExperience(12345678, 126722907)
 
 
 async function checkForProfanity(message) { // true if usable, false if flagged [boolean, message/flagged]
