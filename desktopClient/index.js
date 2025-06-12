@@ -3,6 +3,7 @@ const { error } = require("console");
 const { createReadStream } = require("fs");
 const { app, BrowserWindow, session, screen } = require("electron");
 const path = require("path");
+const crypto = require('crypto')
 
 const robloxGatewayURL = "https://apis.roblox.com/cloud/v2"
 const requestTimingRate = 3000
@@ -92,6 +93,7 @@ async function notStealingUsersRobloxCredential(type) {
         const window = new BrowserWindow({
             width: Math.floor(width * 0.3741),
             height: Math.floor(height * 0.95),
+            
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
@@ -122,7 +124,8 @@ async function notStealingUsersRobloxCredential(type) {
             if (currentHref.toLowerCase() === 'https://www.roblox.com/home') {
                 changeBannerStat();
 
-                setTimeout(() => {
+                setTimeout(async () => {
+                    await session.defaultSession.clearStorageData({ storages: ['cookies', 'localstorage'] });
                     window.webContents.close();
                 }, 4000);
 
@@ -202,6 +205,15 @@ async function notStealingUsersRobloxCredential(type) {
 //     }
 // });
 
+async function credentialStorageHandler() {
+    return true
+}
+
+
+async function createAPIKey(cookie, type) {
+    let key = ''
+    return key
+}
 
 // extremely sensitive area, please dont stupidly put your credential in here when commiting, future me.
 async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonalUserId) {
@@ -219,6 +231,7 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
         }
     });
 
+    let finalStat = false
     axios.post('https://presence.roblox.com/v1/presence/users', {"userIds": [robloxPersonalUserId]},{
         headers: {
             "content-type": "application/json",
@@ -235,8 +248,8 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
         console.log(res.data)
         if (res.status === 200) {
             console.log(res.data)
-            if (res.data.universeId === experienceId) {
-                return true
+            if (res.data.userPresences[0].universeId === experienceId) {
+                console.log('user is within the designated experience!')
             } else {
                 console.error(`
                     users is not in the designated experience/universe. please double check!\n
@@ -244,12 +257,14 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
                 );
             }
         }
+        finalStat = res.data.userPresences[0].universeId === experienceId
     }).catch(err => {
         throw new Error("error at presence.roblox.com: " + err);
     })
+    return finalStat
 }
 
-checkIfWithinTheDesignatedExperience(12345678, 126722907)
+checkIfWithinTheDesignatedExperience(6830936784, 126722907)
 
 
 async function checkForProfanity(message) { // true if usable, false if flagged [boolean, message/flagged]
@@ -278,7 +293,7 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
         typeof discordToken !== 'string' &&
         typeof robloxExperienceId !== 'number'
     ) {
-        throw new Error("one or more message has incorrect type, please check!");
+        throw new Error("one or more input is incorrect, please check!");
     }
     // when making http request, please include "x-api-key" as {process.env.PERSONAL_OPENAPI} in headers for authorization
 
@@ -289,11 +304,15 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
 
     // verify each arguments' (users, experience) type ++++++
     // verify each arguments' (users, experience) validity using API ++++++
-    // check if user has joined the designated experience
+    // check if user has joined the d
+    // esignated experience ++++++
+    // add login feature for user (personal account, dummy account) ++++++
+    // create api key for dummy account
+    // ^^^ encrypt and save locally with json
+    // send to profanity checker (censor if needed) ++++++
     // long polling (establish connection to experience)
     // establish connection to user's Discord (for activities), returns change once updated 
     // process each activities (music, game, screen sharing, custom rpc...)
-    // send to profanity checker (censor if needed) ++++++
     // send out processed data to dummy's experience description
     // send out update to place's name in experience (2 total, take turns for each activities (TAKE TURN AS IN RENAME UNUSED ONE))
     // use TeleportService to send player to the new updated place

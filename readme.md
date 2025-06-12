@@ -1,12 +1,12 @@
 
-<h1 style="text-align:center;">bloxCord RPC <span style="font-weight: 100; font-size: small">(internally known as bc_rpc)</span><br><span style="text-align:center; font-size:large">Seamlessly Connect Your Roblox Experience to Discord Rich Presence (Work in Process)</span>
+<h1 style="text-align:center;">bloxCord RPC <span style="font-weight: 100; font-size: small">(internally known as bc_rpc)</span><br><span style="text-align:center; font-size:large">Seamlessly Connect Your Discord Rich Presence to Roblox Profile (Work in Process)</span>
 
 
 # Feature
 - Bridging Discord Rich Presence to your Roblox's profile (for all of your flexing's need that you are working!).
-- Safety first! (PG all the way with blazingly fast [profanity.API](https://profanity.dev) API to Roblox's filtering solution).
+- Safety first! (PG all the way with blazingly fast [profanity.API](https://profanity.dev) API and Roblox's filtering solution).
 - Flexible with multiple RPC (from your AUX's pick to the finest game you had in collection).
-- Cross-platform (keeping the flexing's need at every tech that you owned).
+- Cross-platform (keep the flexing's need at every tech that you owned).
 <br><br>
 *okay im done glazing ts for now*
 

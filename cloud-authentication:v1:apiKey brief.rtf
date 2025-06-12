@@ -1,0 +1,93 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2761
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fswiss\fcharset0 Helvetica-Oblique;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\qc\partightenfactor0
+
+\f0\fs36 \cf0 \ul \ulc0 Api endpoint for creating api (why is Roblox gatekeeping this?)\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 \ulnone \
+== header==\
+URL: https://apis.roblox.com/cloud-authentication/v1/apiKey\
+Method: POST\
+CORS: yes.\
+Authentication style: Cookie\
+Sec-Fetch-Site: same-site\
+Host: apis.roblox.com\
+Origin: https://create.roblox.com\
+x-csrf-token?: not sure\
+Referer: https://create.roblox.com/\
+Content-Type: application/json\
+User-agent?: 
+\f1\i yeah add it\
+\
+
+\f0\i0 requestData: standard json\
+\{\
+	"cloudAuthUserConfiguredProperties":\{\
+		"name": \'93name of the app\'94,\
+		"description": \'93description of the app\'94,\
+		"isEnabled":true,\
+		"allowedCidrs":["0.0.0.0/0"],\
+		"scopes":[\{\
+			"scopeType":	"universe",\
+			"targetParts":["2505937680"],\
+			"operations":["write"]\
+		\},\
+		\{\
+			"scopeType":"universe.place",\
+			"targetParts":["2505937680"],\
+			"operations":["write"]\
+		\}]\
+	\}\
+\}
+\f1\i \
+
+\f0\i0 ==response==\
+Standard json response\
+\
+\{\
+    "cloudAuthInfo": \{\
+        "id": \'93id of the api\'94,\
+        "createdTime": "2025-06-12T05:07:11.689Z",\
+        "updatedTime": "2025-06-12T05:07:11.689Z",\
+        "cloudAuthUserConfiguredProperties": \{\
+            "name": \'93name of the app\'94,\
+            "description": \'93description of the app\'94,\
+            "isEnabled": true,\
+            "allowedCidrs": [\
+                "0.0.0.0/0"\
+            ],\
+            "scopes": \
+		[\{\
+                    "scopeType": "universe",\
+                    "targetParts": [\
+                        "2505937680"\
+			],\
+                    "operations": [\
+                        "write"\
+                    ],\
+                    "allowAllOperations": false\
+                \},\
+                \{\
+                    "scopeType": "universe.place",\
+                    "targetParts": [\
+                        "2505937680"\
+                    ],\
+                    "operations": [\
+                        "write"\
+                    ],\
+                    "allowAllOperations": false\
+                \}\
+            ]\
+        \},\
+        "ownerId": 2497021182,\
+        "ownerType": "OWNER_TYPE_USER",\
+        "lastGeneratedUserId": id of dummy\'92s account,\
+        "lastGeneratedTime": "2025-06-12T05:07:11.689Z",\
+        "apikeySecretPreview": \'93start of the api key\'93,\
+        "cloudAuthBadStatus": []\
+    \},\
+    "apikeySecret": string // api key itself\
+\}}
