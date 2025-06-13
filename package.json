@@ -5,7 +5,7 @@
   "main": "index.ts",
   "scripts": {
       "start": "clear && electron --env-file=config.env desktopclient/index.js",
-      "ui.login": "clear && echo 'displaying logon page' && electron desktopclient/gui/gui.js"
+      "start:node": "clear && node --env-file=config.env desktopclient/index.js"
   },
   "author": "",
   "license": "ISC",

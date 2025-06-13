@@ -1,9 +1,11 @@
-const { default: axios } = require("axios");
+const { default: axios, create } = require("axios");
 const { error } = require("console");
 const { createReadStream } = require("fs");
 const { app, BrowserWindow, session, screen } = require("electron");
 const path = require("path");
-const crypto = require('crypto')
+const localStorage = require('./storageHandler')
+
+const productionReady = false
 
 const robloxGatewayURL = "https://apis.roblox.com/cloud/v2"
 const requestTimingRate = 3000
@@ -13,6 +15,16 @@ const preHeader = axios.create({
         "x-api-key": process.env.PERSONAL_OPENAPI
     }
 })
+
+function randomString(length) { // shamelessly stolen off stackoverflow (xoxo @ csharptest.net and tylerh)
+    var result           = '';
+    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var charactersLength = characters.length;
+    for ( var i = 0; i < length; i++ ) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
+}
 
 
 async function establishDiscordConnection(userId, discordToken) {
@@ -84,9 +96,11 @@ async function checkRobloxUniverse(universeId, placeId, setting, miscellaneous) 
 // checkRobloxUniverse(6708394684, 122757165339913, 2, ['sick open cloud gng', "hello world!"])
 
 
-async function notStealingUsersRobloxCredential(type) {
+async function notStealingUsersRobloxCredential(accountType) {
+    //accountType = 0: personal account; 1: dummy account; 2: temporary login
     let cookieOutput = ''
 
+    
     function startLoginPrompt() {
         const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
@@ -101,7 +115,7 @@ async function notStealingUsersRobloxCredential(type) {
             },
         });
 
-        window.loadURL('https://roblox.com');
+        window.loadURL('https://roblox.com/login');
         window.webContents.insertCSS(`
         body {
             position: static;
@@ -125,7 +139,9 @@ async function notStealingUsersRobloxCredential(type) {
                 changeBannerStat();
 
                 setTimeout(async () => {
-                    await session.defaultSession.clearStorageData({ storages: ['cookies', 'localstorage'] });
+                    productionReady || accountType === 2 ? // clear state or temporary login
+                        await session.defaultSession.clearStorageData({ storages: ['cookies'] }) :
+                        false
                     window.webContents.close();
                 }, 4000);
 
@@ -186,34 +202,69 @@ async function notStealingUsersRobloxCredential(type) {
                         extLoginBanner.style.translate = 'translateY(50%)';
 
                         headerText.innerText = 'You did it, glad you still remember the password.';
-                        underText.innerText = 'This window will close by itself after processing...';
+                        underText.innerText = 'This window will close by itself automatically...';
                     `);
                 }
             });
         });
     }
 
-    return await startLoginPrompt();
+    app.whenReady().then(() => {
+        startLoginPrompt()
+    });
 }
 
-// app.whenReady().then(async () => {
-//     try {
-//         const cookies = await notStealingUsersRobloxCredential(false);
-//         console.log(cookies); // Should now log the correct cookie output
-//     } catch (err) {
-//         console.error('Error:', err);
-//     }
-// });
+// notStealingUsersRobloxCredential(2)
 
-async function credentialStorageHandler() {
-    return true
+
+async function createAPIKey(cookie, placeId, type) { // returns as [boolean, apikeySecret]
+    const requestAPI = {
+        "cloudAuthUserConfiguredProperties":{
+            "name": `${randomString(4)}bloxC`,
+            "description": "bloxC's required api, nutch:3",
+            "isEnabled": true,
+            "allowedCidrs":['0.0.0.0/0'],
+            "scopes":[{
+                "operations":["write"],
+                "scopeType": "universe",
+                "targetParts":[`${placeId}`]
+            },
+            {
+                "operations": ["write"],
+                "scopeType":"universe.place",
+                "targetParts": [`${placeId}`]
+            }]
+        }
+    }
+    
+    axios.post('https://apis.roblox.com/cloud-authentication/v1/apiKey', requestAPI, {
+        headers: {
+            "content-type": "application/json",
+            // @ts-ignore
+            "Cookie": cookie,
+            "origin": "https://create.roblox.com/",
+            "priority": "u=1, i",
+            "referer": "https://create.roblox.com/",
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-site',
+            "sec-ch-ua": `Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24`,
+            'x-csrf-token': 'OXdltcU8/wsm' // TODO: make this dynamic (maybe create a GET call to create.roblox.com and scrape one?)
+        }
+    }).then(res => {
+        // console.log(res.data)
+        // console.log(res.status)
+        return [res.status, res.data.apikeySecret]
+    }).catch(err => {
+        throw new Error('error at createAPIKey: ' + err)
+    })
 }
 
+// const createApiKeyTemp = process.env.PERSONAL_COOKIE;
+// console.log(createApiKeyTemp)
 
-async function createAPIKey(cookie, type) {
-    let key = ''
-    return key
-}
+// createAPIKey(createApiKeyTemp, 6830936784, true)
+
 
 // extremely sensitive area, please dont stupidly put your credential in here when commiting, future me.
 async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonalUserId) {
@@ -264,7 +315,7 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
     return finalStat
 }
 
-checkIfWithinTheDesignatedExperience(6830936784, 126722907)
+// checkIfWithinTheDesignatedExperience(6830936784, 126722907)
 
 
 async function checkForProfanity(message) { // true if usable, false if flagged [boolean, message/flagged]
@@ -272,11 +323,12 @@ async function checkForProfanity(message) { // true if usable, false if flagged 
         const response = await axios.post('https://vector.profanity.dev', JSON.stringify({ message }), {
             headers: { 'Content-Type': 'application/json' }
         });
-        if (response.data.isProfanity) {
-            return [false, response.data.flaggedFor];
-        } else {
-            return [true, message];
-        }
+        // if (response.data.isProfanity) {
+        //     return [false, response.data.flaggedFor];
+        // } else {
+        //     return [true, message];
+        // }
+        return [response.data.isProfanity, response.data.flaggedFor]
     } catch (error) {
         console.error("error checking profanity:", error);
         return [null, null];
