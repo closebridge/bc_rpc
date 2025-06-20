@@ -4,17 +4,21 @@
   "description": "a",
   "main": "index.ts",
   "scripts": {
-      "start": "clear && electron --env-file=config.env desktopclient/index.js",
-      "start:node": "clear && node --env-file=config.env desktopclient/index.js"
+    "start": "clear && electron --env-file=config.env desktopclient/index.js",
+    "start:node": "clear && node --env-file=config.env desktopclient/index.js",
+    "start:gateway": "clear && node --env-file=config.env desktopclient/discordHandler.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.9.0",
+    "discord.js": "^14.20.0",
     "dotenv": "^16.5.0",
     "electron": "^36.4.0",
     "electron-builder": "^26.0.12",
-    "tsx": "^4.19.4"
+    "next": "^15.3.3",
+    "tsx": "^4.19.4",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@types/node": "^22.15.30"

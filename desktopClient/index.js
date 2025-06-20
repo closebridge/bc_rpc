@@ -3,7 +3,7 @@ const { error } = require("console");
 const { createReadStream } = require("fs");
 const { app, BrowserWindow, session, screen } = require("electron");
 const path = require("path");
-const localStorage = require('./storageHandler')
+const localStorage = require('./storageHandler') // not usable!
 
 const productionReady = false
 
@@ -98,6 +98,7 @@ async function checkRobloxUniverse(universeId, placeId, setting, miscellaneous) 
 
 async function notStealingUsersRobloxCredential(accountType) {
     //accountType = 0: personal account; 1: dummy account; 2: temporary login
+    const accountTypeToText = {0: 'personal account', 1: 'dummy account', 2: 'temporary login'}
     let cookieOutput = ''
 
     
@@ -183,7 +184,8 @@ async function notStealingUsersRobloxCredential(accountType) {
                         cookies.forEach((arr) => {
                             cookieOutput = `${cookieOutput}${arr.name}=${arr.value};`;
                         });
-
+                        // @ts-ignore
+                        localStorage.storageHandler([1, `${accountTypeToText[accountType], cookieOutput}`], null)
                         resolve(cookieOutput);
                     } catch (err) {
                         reject(err);
@@ -214,7 +216,8 @@ async function notStealingUsersRobloxCredential(accountType) {
     });
 }
 
-// notStealingUsersRobloxCredential(2)
+// notStealingUsersRobloxCredential(0)
+
 
 
 async function createAPIKey(cookie, placeId, type) { // returns as [boolean, apikeySecret]
@@ -356,10 +359,9 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
 
     // verify each arguments' (users, experience) type ++++++
     // verify each arguments' (users, experience) validity using API ++++++
-    // check if user has joined the d
-    // esignated experience ++++++
+    // check if user has joined the designated experience ++++++
     // add login feature for user (personal account, dummy account) ++++++
-    // create api key for dummy account
+    // create api key for dummy account ++++++
     // ^^^ encrypt and save locally with json
     // send to profanity checker (censor if needed) ++++++
     // long polling (establish connection to experience)
