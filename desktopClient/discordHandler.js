@@ -1,10 +1,6 @@
-// @ts-ignore
-// @ts-ignore
 import axios from "axios";
 // import ws from "ws" // "Don't reinvent the wheel -Anthony J. D'Angelo..."
-// @ts-ignore
-// @ts-ignore
-import { Client, Events, GatewayIntentBits, Guild } from "discord.js" 
+import { Client, Events, GatewayIntentBits, Guild } from "discord.js"
 
 
 const botTokenAPI = process.env.BOT_TOKEN
@@ -81,4 +77,5 @@ client.on('presenceUpdate', async (oldActivity, newActivity) => {
 	}
 })
 
-client.login(botTokenAPI)
+const startDiscordGateway = () => client.login(botTokenAPI)
+export default startDiscordGateway;

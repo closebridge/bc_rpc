@@ -1,9 +1,11 @@
 const { default: axios, create } = require("axios");
 const { error } = require("console");
 const { createReadStream } = require("fs");
-const { app, BrowserWindow, session, screen } = require("electron");
+const { app, BrowserWindow, session, screen, shell } = require("electron");
 const path = require("path");
+
 const localStorage = require('./storageHandler') // not usable!
+const discordGateway = require('./discordHandler')
 
 const productionReady = false
 
@@ -337,7 +339,19 @@ async function checkForProfanity(message) { // true if usable, false if flagged 
         return [null, null];
     }
 }
+
 // checkForProfanity('example message').then(result => console.log(result))
+function joinRoblox(placeId) {
+    if (placeId && Number.isInteger(placeId) && placeId > 0) {
+        shell.openExternal(`roblox://placeID=${placeId}`);
+        setTimeout(() => { app.quit() }, 600);
+        return true
+    } else {
+        throw new Error('joinRoblox shell failed, placeID: ' + placeId);
+    }
+}
+
+// joinRoblox(91380951984502)
 
 async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [discordToken], [robloxExperienceId]) 
     {
@@ -364,12 +378,11 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
     // create api key for dummy account ++++++
     // ^^^ encrypt and save locally with json
     // send to profanity checker (censor if needed) ++++++
-    // long polling (establish connection to experience)
     // establish connection to user's Discord (for activities), returns change once updated 
     // process each activities (music, game, screen sharing, custom rpc...)
     // send out processed data to dummy's experience description
-    // send out update to place's name in experience (2 total, take turns for each activities (TAKE TURN AS IN RENAME UNUSED ONE))
-    // use TeleportService to send player to the new updated place
+    // send out update to place's name in experience (directly on start place)
+    // use associated URL "roblox://placeID=XXXXXX" for sending player around places
 
     // TODO:
     // add check if experience/universe's creator is the same as "robloxPersonalUserId"
@@ -378,3 +391,5 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
 }
 // console.log(getRobloxPlace(1, 2))
 // console.log(process.env.PERSONAL_OPENAPI);
+
+// discordGateway.default()
