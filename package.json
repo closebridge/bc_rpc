@@ -5,8 +5,9 @@
   "main": "index.ts",
   "scripts": {
     "start": "clear && electron --env-file=config.env desktopclient/index.js",
-    "start:node": "clear && node --env-file=config.env desktopclient/index.js",
-    "start:gateway": "clear && node --env-file=config.env desktopclient/discordHandler.js"
+    "start:node": "clear && node NODE_ONLY=true --env-file=config.env desktopclient/index.js",
+    "start:gateway": "clear && node --env-file=config.env desktopclient/discordHandler.js",
+    "debug:storage" : "clear && node --env-file=config.env desktopClient/storageHandler.js"
   },
   "author": "",
   "license": "ISC",

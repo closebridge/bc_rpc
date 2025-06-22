@@ -6,7 +6,6 @@ const path = require("path");
 
 const localStorage = require('./storageHandler') // not usable!
 const discordGateway = require('./discordHandler')
-
 const productionReady = false
 
 const robloxGatewayURL = "https://apis.roblox.com/cloud/v2"
@@ -18,6 +17,32 @@ const preHeader = axios.create({
     }
 })
 
+console.log(process.env.PERSONAL_OPENAPI)
+
+let personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken
+
+async() => {
+    personalOCCredential = productionReady ? 
+        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[0] : 
+        process.env.PERSONAL_OPENAPI
+    
+    personal_ROBLOSECURITYCredential = productionReady ? 
+        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[1] : 
+        process.env.PERSONAL_COOKIE
+    
+    dummyOCCredential = productionReady ? 
+        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[2] : 
+        process.env.DUMMY_OPENAPI
+    
+    discordBotToken = productionReady ? 
+        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[3] : 
+        process.env.BOT_TOKEN
+    
+    if (!personalOCCredential && !personalOCCredential && !dummyOCCredential && !discordBotToken) {
+        throw new Error('error ')
+    }
+}
+
 function randomString(length) { // shamelessly stolen off stackoverflow (xoxo @ csharptest.net and tylerh)
     var result           = '';
     var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -26,11 +51,6 @@ function randomString(length) { // shamelessly stolen off stackoverflow (xoxo @ 
         result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
     return result;
-}
-
-
-async function establishDiscordConnection(userId, discordToken) {
-    return true;
 }
 
 async function getRobloxPlayer(personalId, dummyId) {
@@ -56,47 +76,77 @@ async function getRobloxPlayer(personalId, dummyId) {
 // getRobloxPlayer(126722907, false)
 
 
-async function checkRobloxUniverse(universeId, placeId, setting, miscellaneous) {
-// setting arg: 0: check, 1: create, 2. update, 3. delete
-// misc arg: [title, body, close/open]
-    let url = ''
+// async function checkRobloxUniverse(universeId, placeId, miscellaneous) {
+// // misc arg: [title, body, close/open]
+//     let url = ''
 
-    // if (universeId && placeId) {
-    //     url = `${robloxGatewayURL}/universes/${universeId}/places/${placeId}`;
-    // } else if (universeId && !placeId) {
-    //     url = `${robloxGatewayURL}/universes/${universeId}`;
-    // } else if (setting === 1) {
-    //     url = `${robloxGatewayURL}/universes/${universeId}/places/${placeId}/versions?versionType="Published"`;}
-    if (!universeId && placeId) {
-        throw new Error("universeId is empty!");
-    }
-
-    switch (setting) {
-        case 0: preHeader.get(url)
-                return
-        case 1: let rblxPlace = createReadStream('./robloxPlace/startPlace.rbxl')
-                preHeader.post(url, rblxPlace, {
-                    headers: {'Content-Type': 'Content-Type: application/xml'},
-                    // params: {"universeId": universeId, 'placeId': placeId, }
-                })
-                return
-        case 2: url = `${robloxGatewayURL}/universes/${universeId}/places/${placeId}`
-                preHeader.patch(url, {
-                    "path": `universes/${universeId}/places/${placeId}`,
-                    "displayName": miscellaneous[0],
-                    "description": miscellaneous[1],
-                    "serverSize": 1
-                })
-                .then(res => {console.log(res.status)})
-                return
-
-        case 3: preHeader.patch(url)
-                return
-
-    }
-}
+//     // if (universeId && placeId) {
+//     //     url = `${robloxGatewayURL}/universes/${universeId}/places/${placeId}`;
+//     // } else if (universeId && !placeId) {
+//     //     url = `${robloxGatewayURL}/universes/${universeId}`;
+//     // } else if (setting === 1) {
+//     //     url = `${robloxGatewayURL}/universes/${universeId}/places/${placeId}/versions?versionType="Published"`;}
+//     if (!universeId && placeId) {
+//         throw new Error("universeId is empty!");
+//     }
+// }
 // checkRobloxUniverse(6708394684, 122757165339913, 2, ['sick open cloud gng', "hello world!"])
 
+/**
+*    @see {@link https://create.roblox.com/docs/cloud/reference/Place#Cloud_UpdatePlace}
+*    @param placeId: number- selected place id to make changes to
+*    @param userType: number- type of user to make change (0: personal ; 1: dummy account)
+*    
+*    ^ behaviour change with different type (0: direct change into main title ; 1: make change to description with newline)
+*
+*    @param value: string- the text value that would be changed
+*    @returns boolean- based on open cloud action
+*/
+async function changePlaceData({universeId, placeId}, userType, value) {
+    if (
+        !Number.isInteger(universeId) && universeId < 0 &&
+        !Number.isInteger(placeId) && placeId < 0 &&
+        !Number.isInteger(userType) && userType < 0 &&
+        typeof value !== 'string'
+    ) {return false}
+
+    console.log(personalOCCredential, dummyOCCredential); return
+
+    switch (userType) {
+        case 0: // personal (make changes directly to user's place) (MUST SANITIZED PROPERLY)
+            return preHeader.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}?updateMask={string}`, {
+                "path": `universes/${universeId}/places/${placeId}`,
+                "displayName": value[0],
+                "description": 'nil',
+                "serverSize": 'integer'
+            })
+            .then(res => res.data)
+            .catch(err => { throw new Error("Error in changing value of place:" + err)})
+        case 1: // dummy (make change into dummy's place description with \n)
+            const newlineValue = () => { // split, newline for each text (return string)
+                let a = ''
+                value.split(' ').forEach(val => {
+                    a += `${val}\u000A`
+                });
+                return a;
+            }
+            return axios.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}?updateMask={string}`,{
+                "path": `universes/${universeId}/places/${placeId}`,
+                "displayName": 'nil',
+                "description": newlineValue(),
+                "serverSize": 1
+            },
+                {headers: {
+                    "x-api-key": dummyOCCredential,
+                    "Content-Type": "application/json"
+                }
+            })
+            .then(res => res.data)
+            .catch(err => { throw new Error("Error in changing value of place:" + err) })
+    }   
+}
+
+changePlaceData({universeId: 6708394684, placeId:122757165339913}, 0, 'hallo guis :D')
 
 async function notStealingUsersRobloxCredential(accountType) {
     //accountType = 0: personal account; 1: dummy account; 2: temporary login
@@ -278,14 +328,7 @@ async function checkIfWithinTheDesignatedExperience(experienceId, robloxPersonal
     // ^^^ so change of plan, we can both summon a roblox.com login page window, let user logon (also solve captcha), and we will store credentials from there; or scrapping credentials from browser's cookie (as its own function called notStealingUsersRobloxCredential (pun))
     // (or for now, we store cookie in .env, call them, and craft them later on...)
 
-    let cookii = await app.whenReady().then(async () => {
-        try {
-            const cookies = await notStealingUsersRobloxCredential(false);
-            return cookies
-        } catch (err) {
-            console.error('error at collecting cookie', err);
-        }
-    });
+    
 
     let finalStat = false
     axios.post('https://presence.roblox.com/v1/presence/users', {"userIds": [robloxPersonalUserId]},{
@@ -339,19 +382,9 @@ async function checkForProfanity(message) { // true if usable, false if flagged 
         return [null, null];
     }
 }
-
 // checkForProfanity('example message').then(result => console.log(result))
-function joinRoblox(placeId) {
-    if (placeId && Number.isInteger(placeId) && placeId > 0) {
-        shell.openExternal(`roblox://placeID=${placeId}`);
-        setTimeout(() => { app.quit() }, 600);
-        return true
-    } else {
-        throw new Error('joinRoblox shell failed, placeID: ' + placeId);
-    }
-}
 
-// joinRoblox(91380951984502)
+
 
 async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [discordToken], [robloxExperienceId]) 
     {
@@ -376,10 +409,10 @@ async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [d
     // check if user has joined the designated experience ++++++
     // add login feature for user (personal account, dummy account) ++++++
     // create api key for dummy account ++++++
-    // ^^^ encrypt and save locally with json
+    // ^^^ encrypt and save locally with json (wait until a poc is done)
     // send to profanity checker (censor if needed) ++++++
-    // establish connection to user's Discord (for activities), returns change once updated 
-    // process each activities (music, game, screen sharing, custom rpc...)
+    // establish connection to user's Discord (for activities), returns change once updated ++++++
+    // process each activities (music, game, screen sharing, custom rpc...) ++++++
     // send out processed data to dummy's experience description
     // send out update to place's name in experience (directly on start place)
     // use associated URL "roblox://placeID=XXXXXX" for sending player around places
