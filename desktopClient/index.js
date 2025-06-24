@@ -1,42 +1,55 @@
 const { default: axios, create, Axios } = require("axios");
-const { error } = require("console");
-const { createReadStream } = require("fs");
+// const { error } = require("console");
+// const { createReadStream } = require("fs");
 const { app, BrowserWindow, session, screen, shell } = require("electron");
 const path = require("path");
+require('dotenv').config({ path: path.resolve(__dirname, '../config.env') });
+// const wanakana = require('wanakana'); // BABABABABA SHAME ON YOU @ROBLOX
+
+
+const { Client, Events, GatewayIntentBits } = require("discord.js")
+
 
 const localStorage = require('./storageHandler') // not usable!
-const discordGateway = require('./discordHandler');
-const { AsyncCallbackSet } = require("next/dist/server/lib/async-callback-set");
+// const startDiscordGateway = require('./discordHandler');
+const storageHandler = require("./storageHandler");
 const productionReady = false
 
 const robloxGatewayURL = "https://apis.roblox.com/cloud/v2"
 const requestTimingRate = 3000
-const placeIds = [122757165339913, 8692096522]
+const placeIds = {'universeId': '7864197053', 'placeId': '91380951984502'}
+
 const preHeader = axios.create({
     headers: {
         "x-api-key": process.env.PERSONAL_OPENAPI
     }
 })
 
-// console.log(process.env.PERSONAL_OPENAPI)
 let personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken;
 
 
 async function fillCredential() {
+    
+    // console.log(process.env.PERSONAL_OPENAPI)
     const getCredential = async (key, envVar) => 
         !productionReady ? 
         process.env[envVar] 
-        : JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[key] 
+        : JSON.parse(await storageHandler({ state: 0, key: 'local_cred', value: false }, null))[key];
 
-    personalOCCredential = await getCredential(0, 'PERSONAL_OPENAPI')
-    personal_ROBLOSECURITYCredential = await getCredential(1, 'PERSONAL_COOKIE')
-    dummyOCCredential = await getCredential(2, 'DUMMY_OPENAPI')
-    discordBotToken = await getCredential(3, 'BOT_TOKEN')
+    try {
+        personalOCCredential = await getCredential(0, 'PERSONAL_OPENAPI');
+        personal_ROBLOSECURITYCredential = await getCredential(1, 'PERSONAL_COOKIE');
+        dummyOCCredential = await getCredential(2, 'DUMMY_OPENAPI');
+        discordBotToken = await getCredential(3, 'BOT_TOKEN');
 
-
-    if (![personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken].every(Boolean)) {
-        throw new Error('unable to pull credentials')
+        if (![personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken].every(Boolean)) {
+            throw new Error('unable to pull credentials');
+        }
+    } catch (error) {
+        console.error('Error filling credentials:', error);
+        throw error;
     }
+    return true;
 }
 
 // (async () => {
@@ -125,21 +138,38 @@ async function changePlaceData({universeId, placeId}, userType, value) {
             // // .then(res => res.headers['x-csrf-token'])
             // .catch(err => { throw new Error("Error fetching CSRF token: " + err) })
 
-
-            return preHeader.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`, {
-                "path": `universes/${universeId}/places/${placeId}`,
-                "displayName": value,
-                "description": 'nil/null/undefined/void/empty/nada/zip/zilch',
-                "serverSize": 1
-            },
-                {headers: {
-                    "x-api-key": personalOCCredential,
-                    "Content-Type": "application/json",
-                    // "x-csrf-token": csrfToken
-                }
+            const seperateAxiosRequestSinceIveNoIdeaHowItHappened = axios.create({
+                headers: {
+                    'x-api-key': personalOCCredential,
+                    'Content-Type': 'application/json; charset=utf-8'
+                },
+                method: 'patch',
+                url: `${robloxGatewayURL}/universes/${universeId}/places/${placeId}`,
             })
-            .then(res => res.data)
-            .catch(err => { throw new Error("Error in changing displayName of place:" + err)})
+
+            // const finalValue = (val) => {
+            //     let final
+            //     if (wanakana.isJapanese(val)) {
+            //         final = wanakana.toRomaji(val)
+            //     } else {
+            //         final = val
+            //     }
+            //     return val
+            // }
+
+            
+            // console.log(finalValue())
+            return seperateAxiosRequestSinceIveNoIdeaHowItHappened.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`, {
+                "path": `universes/${universeId}/places/${placeId}`,
+                "displayName": value, // the value is here!
+                "description": 'hi',
+                "serverSize": 1
+            })
+            .then(res => {
+                console.log(res.status, res.statusText)
+                // res.data
+            })
+            .catch(err => { throw new Error("Error in changing displayName of place:" + err.response.statusText)});
         case 1: // dummy (make change into dummy's place description with \n)
             const newlineValue = async() => { // split, newline for each text (return string)
                 let a = ''
@@ -163,12 +193,12 @@ async function changePlaceData({universeId, placeId}, userType, value) {
             .catch(err => { throw new Error("Error in changing description of place:" + err) })
     }   
 }
-(async () => {
-    console.log('wait0')
-    await fillCredential();
-    console.log('WAIT1')
-    changePlaceData({universeId: 7864197053, placeId:91380951984502}, 0, 'hallo guis :D')
-})();
+// (async () => {
+//     // console.log('wait0')
+//     await fillCredential();
+//     // console.log('WAIT1')
+//     changePlaceData({universeId: 7864197053, placeId:91380951984502}, 0, 'hallo guis :D')
+// })();
 
 async function notStealingUsersRobloxCredential(accountType) {
     //accountType = 0: personal account; 1: dummy account; 2: temporary login
@@ -407,43 +437,190 @@ async function checkForProfanity(message) { // true if usable, false if flagged 
 // checkForProfanity('example message').then(result => console.log(result))
 
 
+// ==== DISCORD.JS RELATED AREA (ACTIVITY SCRAPE) START ==== 
 
-async function __init__([discordUserId, robloxPersonalUserId, robloxDummyId], [discordToken], [robloxExperienceId]) 
-    {
-    if ( // ugly, but it gets the job done
-        typeof discordUserId !== 'number' &&
-        typeof robloxPersonalUserId !== 'number' &&
-        typeof robloxDummyId !== 'number' &&
-        typeof discordToken !== 'string' &&
-        typeof robloxExperienceId !== 'number'
-    ) {
-        throw new Error("one or more input is incorrect, please check!");
+const botTokenAPI = process.env.BOT_TOKEN
+const client = new Client({ intents: [
+	GatewayIntentBits.Guilds, 
+	GatewayIntentBits.GuildMembers, 
+	GatewayIntentBits.GuildPresences] 
+})
+const targetMemberId = "363479095503355904"; // me
+const sharedServerId = "968463808039383070" // current server that bot and user is within
+
+client.once(Events.ClientReady, async readyClient => {
+	console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+	return await currentActivity();
+});
+
+let currentActivity = async() => {
+	let sharedServer
+	let user
+	try {
+		sharedServer = await client.guilds.fetch(sharedServerId)
+	} catch (error) {
+		throw new Error("server's ID is incorrect")
+	}
+
+
+	try {
+		user = await sharedServer.members.fetch(targetMemberId)
+		// console.log(user)
+	} catch (error) {
+		throw new Error("user's ID is incorrect")
+	}
+
+	// @ts-ignore
+	const activities = user.presence?.activities;
+	let finalOutput = {} // json
+	// console.log(activities)
+	if (!activities) {
+		// console.log('user is not playing anything')
+	} else {
+		finalOutput = {}
+		// console.log('user is playing something')
+		// {type: number, name: string [largeText, smallText, details, state]}
+		// console.log(`${activities}, ${activities.length}, ${activities[0].type}` )
+		// return false
+		for (let i = 0; i < activities.length; i++) {
+			
+			// 	case 0: // playing something
+			// 	case 1: // streaming
+			// 	case 2: // listening
+			// 	case 3: // watching
+			// 	case 4: // you tell me (custom)
+
+			if (activities[i]) {
+				const item = {[i]: {
+					type: activities[i]['type'],
+					data: [
+						activities[i]['name'],
+						activities[i]?.assets?.largeText || null,
+						activities[i]?.assets?.smallText || null,
+						activities[i]?.details || null
+					]
+				}}
+			Object.assign(finalOutput, item)
+			}
+		};
+	}
+	return finalOutput
+}
+
+
+// @ts-ignore
+let debounceTiming = Date.now()
+const typePretext = ['Playing', 'Streaming', 'Listening to', 'Watching']
+client.on('presenceUpdate', async (oldActivity, newActivity) => {
+    let activityData
+	if (newActivity.userId === targetMemberId && debounceTiming + 300 <= Date.now() ) {
+        let finalRPC = ''
+		activityData = await currentActivity()
+        // console.log(activityData[1])
+        // console.log(Object.keys(activityData).length)
+        // return
+        for (const key in activityData) {
+            if (activityData.hasOwnProperty(key)) {
+                // console.log(activityData[key].type); break
+                if (activityData[key].type == 4) {false}
+                else if (activityData[key].type === 2) { // listening to (spotify 100%)
+                    finalRPC += activityData[key].data[0] === "Spotify" ? `${typePretext[activityData[key].type]} ${activityData[key].data[1]} on "Sptfy"` : `${typePretext[activityData[key].type]} ${activityData[key].data[1]} on ${activityData[key].data[0]}`
+                } else {
+                    finalRPC += `${typePretext[activityData[key].type]} ${activityData[key].data[1]}`
+                }
+            }
+        }
+        console.log(finalRPC)
+        
+        checkForProfanity('example message') // [response.data.isProfanity, response.data.flaggedFor]
+        .then(result => {
+            console.log(result)
+            if (result[0] == true) {
+                console.error('profanity catched, since its 3am right now, i dont want to deal anything, and i want to have a proof of concept asap so ill return -1 so the pushToRoblox wont do anything')
+                finalRPC = ''
+            }
+        })
+
+
+        if (finalRPC) {
+            await changePlaceData({universeId: 7864197053, placeId:91380951984502}, 0, finalRPC)
+            joinRoblox(Number(placeIds.placeId))
+        }
+
+        debounceTiming = Date.now()
+
+		// console.log(activityData)
+	}
+})
+
+
+const startDiscordGateway = async () => {
+    await client.login(botTokenAPI);
+    return await currentActivity();
+};
+
+// ==== DISCORD.JS RELATED AREA (ACTIVITY SCRAPE) END ==== 
+
+
+function joinRoblox(placeId) {
+    if (placeId && Number.isInteger(placeId) && placeId > 0) {
+        shell.openExternal(`roblox://placeID=${placeId}`);
+        // setTimeout(() => { app.quit() }, 600);
+        return true
+    } else {
+        throw new Error('joinRoblox shell failed, placeID: ' + placeId);
     }
-    // when making http request, please include "x-api-key" as {process.env.PERSONAL_OPENAPI} in headers for authorization
+}
 
-    // if ((await checkRobloxUniverse(robloxExperienceId)).length > 0 
-    // && (await getRobloxPlayer(robloxPersonalUserId, robloxDummyId)).length > 0) {
-    //     return true
+// joinRoblox(91380951984502)
+
+
+async function initializeFeature([discordUserId, robloxPersonalUserId, robloxDummyId], [discordToken], [robloxExperienceId]) {
+    console.log('running')
+    // hydrate credentials from localstorage
+    if (await fillCredential()) {
+        // joinRoblox(Number(placeIds.placeId))
+        let userActivities = startDiscordGateway()
+        // console.log(userActivities)
+    }
+
+    // check for each value
+    // if (![personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken, placeIds.placeId, placeIds.universeId].every(Boolean)) {
+    //     console.error('data(s) integrity wee-a-bit-doozy, please check!')
+    //     return false
     // }
 
-    // verify each arguments' (users, experience) type ++++++
-    // verify each arguments' (users, experience) validity using API ++++++
-    // check if user has joined the designated experience ++++++
-    // add login feature for user (personal account, dummy account) ++++++
-    // create api key for dummy account ++++++
-    // ^^^ encrypt and save locally with json (wait until a poc is done)
-    // send to profanity checker (censor if needed) ++++++
-    // establish connection to user's Discord (for activities), returns change once updated ++++++
-    // process each activities (music, game, screen sharing, custom rpc...) ++++++
-    // send out processed data to dummy's experience description
-    // send out update to place's name in experience (directly on start place)
-    // use associated URL "roblox://placeID=XXXXXX" for sending player around places
+    // join place
 
-    // TODO:
-    // add check if experience/universe's creator is the same as "robloxPersonalUserId"
-    // add warning if experience's serverSize is more than 1 && not privated
-    // store, encrypt saved credential using user-held password?
-}
+    // run discord gateway to catch activities
+    
+    
+};
+
+initializeFeature([1, 1, 1], [1], [1]);
+(async() => { 
+    console.log('hi');
+})
+
+// when making http request, please include "x-api-key" as {process.env.PERSONAL_OPENAPI} in headers for authorization
+
+// verify each arguments' (users, experience) type ++++++
+// verify each arguments' (users, experience) validity using API ++++++
+// check if user has joined the designated experience ++++++
+// add login feature for user (personal account, dummy account) ++++++
+// create api key for dummy account ++++++
+// ^^^ encrypt and save locally with json (wait until a poc is done)
+// send to profanity checker (censor if needed) ++++++
+// establish connection to user's Discord (for activities), returns change once updated ++++++
+// process each activities (music, game, screen sharing, custom rpc...) ++++++
+// send out processed data to dummy's experience description
+// send out update to place's name in experience (directly on start place)
+// use associated URL "roblox://placeID=XXXXXX" for sending player around places
+
+// TODO:
+// add check if experience/universe's creator is the same as "robloxPersonalUserId"
+// add warning if experience's serverSize is more than 1 && not privated
+// store, encrypt saved credential using user-held password?
 // console.log(getRobloxPlace(1, 2))
 // console.log(process.env.PERSONAL_OPENAPI);
 

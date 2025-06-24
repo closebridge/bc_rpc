@@ -1,7 +1,7 @@
-import { existsSync, readFileSync, stat, writeFileSync } from 'fs'
-import path from 'path';
-import process from 'process';
-import crypto from 'crypto'
+const { existsSync, readFileSync, stat, writeFileSync } = require('fs');
+const path = require('path');
+const process = require('process');
+// import crypto from 'crypto'
 
 
 // @ts-ignore
@@ -15,7 +15,7 @@ const fileName = path.join(process.env.HOME, 'Documents', 'bc-config.json');
 *    @returns array [state, key, value]
 *    @description make change to config file (by default it's `bc-config.json` located in user's Document folder)
 */
-export async function storageHandler( { state, key, value }, password) {
+async function storageHandler( { state, key, value }, password) {
     // [state]: [0: read || 1: write || 2: remove] (kinda like permission number in linux)
     // ^^ [0: write:: required key, value] (fn would return true/false)
     // ^^ [0: read:: required key] (fn would return object of the requested key)
@@ -81,5 +81,7 @@ export async function storageHandler( { state, key, value }, password) {
     }
     return returns
 }
+
+module.exports = storageHandler
 
 // console.log(storageHandler( {state: 1, key: "hallo:D", value: '2' }, null))

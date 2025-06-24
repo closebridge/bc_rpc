@@ -4,10 +4,10 @@
   "description": "a",
   "main": "index.ts",
   "scripts": {
-    "start": "clear && electron --env-file=config.env desktopclient/index.js",
-    "start:node": "clear && node NODE_ONLY=true --env-file=config.env desktopclient/index.js",
+    "start:electron": "clear && electron desktopclient/index.js",
+    "start:node": "clear && node --env-file=config.env desktopclient/index.js",
     "start:gateway": "clear && node --env-file=config.env desktopclient/discordHandler.js",
-    "debug:storage" : "clear && node --env-file=config.env desktopClient/storageHandler.js"
+    "debug:storage": "clear && node --env-file=config.env desktopClient/storageHandler.js"
   },
   "author": "",
   "license": "ISC",
@@ -19,6 +19,7 @@
     "electron-builder": "^26.0.12",
     "next": "^15.3.3",
     "tsx": "^4.19.4",
+    "wanakana": "^5.3.1",
     "ws": "^8.18.2"
   },
   "devDependencies": {
