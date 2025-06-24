@@ -1,11 +1,12 @@
-const { default: axios, create } = require("axios");
+const { default: axios, create, Axios } = require("axios");
 const { error } = require("console");
 const { createReadStream } = require("fs");
 const { app, BrowserWindow, session, screen, shell } = require("electron");
 const path = require("path");
 
 const localStorage = require('./storageHandler') // not usable!
-const discordGateway = require('./discordHandler')
+const discordGateway = require('./discordHandler');
+const { AsyncCallbackSet } = require("next/dist/server/lib/async-callback-set");
 const productionReady = false
 
 const robloxGatewayURL = "https://apis.roblox.com/cloud/v2"
@@ -17,31 +18,33 @@ const preHeader = axios.create({
     }
 })
 
-console.log(process.env.PERSONAL_OPENAPI)
+// console.log(process.env.PERSONAL_OPENAPI)
+let personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken;
 
-let personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken
 
-async() => {
-    personalOCCredential = productionReady ? 
-        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[0] : 
-        process.env.PERSONAL_OPENAPI
-    
-    personal_ROBLOSECURITYCredential = productionReady ? 
-        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[1] : 
-        process.env.PERSONAL_COOKIE
-    
-    dummyOCCredential = productionReady ? 
-        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[2] : 
-        process.env.DUMMY_OPENAPI
-    
-    discordBotToken = productionReady ? 
-        JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[3] : 
-        process.env.BOT_TOKEN
-    
-    if (!personalOCCredential && !personalOCCredential && !dummyOCCredential && !discordBotToken) {
-        throw new Error('error ')
+async function fillCredential() {
+    const getCredential = async (key, envVar) => 
+        !productionReady ? 
+        process.env[envVar] 
+        : JSON.parse(await localStorage.storageHandler({ state: 0, key: 'local_cred', value: false }, null))[key] 
+
+    personalOCCredential = await getCredential(0, 'PERSONAL_OPENAPI')
+    personal_ROBLOSECURITYCredential = await getCredential(1, 'PERSONAL_COOKIE')
+    dummyOCCredential = await getCredential(2, 'DUMMY_OPENAPI')
+    discordBotToken = await getCredential(3, 'BOT_TOKEN')
+
+
+    if (![personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken].every(Boolean)) {
+        throw new Error('unable to pull credentials')
     }
 }
+
+// (async () => {
+//     await fillCredential();
+//     console.log(personalOCCredential, dummyOCCredential);
+// })();
+
+
 
 function randomString(length) { // shamelessly stolen off stackoverflow (xoxo @ csharptest.net and tylerh)
     var result           = '';
@@ -110,30 +113,45 @@ async function changePlaceData({universeId, placeId}, userType, value) {
         typeof value !== 'string'
     ) {return false}
 
-    console.log(personalOCCredential, dummyOCCredential); return
 
     switch (userType) {
         case 0: // personal (make changes directly to user's place) (MUST SANITIZED PROPERLY)
-            return preHeader.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}?updateMask={string}`, {
+            // const csrfToken = await preHeader.get('https://create.roblox.com/', {
+            //     headers: {
+            //         "x-api-key": personalOCCredential,
+            //     }
+            // })
+            // .then(res => console.log(res.headers))
+            // // .then(res => res.headers['x-csrf-token'])
+            // .catch(err => { throw new Error("Error fetching CSRF token: " + err) })
+
+
+            return preHeader.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`, {
                 "path": `universes/${universeId}/places/${placeId}`,
-                "displayName": value[0],
-                "description": 'nil',
-                "serverSize": 'integer'
+                "displayName": value,
+                "description": 'nil/null/undefined/void/empty/nada/zip/zilch',
+                "serverSize": 1
+            },
+                {headers: {
+                    "x-api-key": personalOCCredential,
+                    "Content-Type": "application/json",
+                    // "x-csrf-token": csrfToken
+                }
             })
             .then(res => res.data)
-            .catch(err => { throw new Error("Error in changing value of place:" + err)})
+            .catch(err => { throw new Error("Error in changing displayName of place:" + err)})
         case 1: // dummy (make change into dummy's place description with \n)
-            const newlineValue = () => { // split, newline for each text (return string)
+            const newlineValue = async() => { // split, newline for each text (return string)
                 let a = ''
                 value.split(' ').forEach(val => {
                     a += `${val}\u000A`
                 });
                 return a;
             }
-            return axios.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}?updateMask={string}`,{
+            return axios.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`,{
                 "path": `universes/${universeId}/places/${placeId}`,
                 "displayName": 'nil',
-                "description": newlineValue(),
+                "description": await newlineValue(),
                 "serverSize": 1
             },
                 {headers: {
@@ -142,11 +160,15 @@ async function changePlaceData({universeId, placeId}, userType, value) {
                 }
             })
             .then(res => res.data)
-            .catch(err => { throw new Error("Error in changing value of place:" + err) })
+            .catch(err => { throw new Error("Error in changing description of place:" + err) })
     }   
 }
-
-changePlaceData({universeId: 6708394684, placeId:122757165339913}, 0, 'hallo guis :D')
+(async () => {
+    console.log('wait0')
+    await fillCredential();
+    console.log('WAIT1')
+    changePlaceData({universeId: 7864197053, placeId:91380951984502}, 0, 'hallo guis :D')
+})();
 
 async function notStealingUsersRobloxCredential(accountType) {
     //accountType = 0: personal account; 1: dummy account; 2: temporary login
