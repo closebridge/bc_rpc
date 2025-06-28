@@ -1,46 +1,61 @@
 const { existsSync, readFileSync, stat, writeFileSync } = require('fs');
 const path = require('path');
 const process = require('process');
-// import crypto from 'crypto'
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 
 // @ts-ignore
 const fileName = path.join(process.env.HOME, 'Documents', 'bc-config.json');
 
 /**
+ *   make change to config file (by default it's `bc-config.json` located in user's Document folder)
 *    @param state: number- 0: read ; 1: write ; 2: remove
 *    @param key: string- key of the entry for both read and write
 *    @param value: string- writing into selected key
-*    @param password: string- user password to decrypt bc-config.json (both read and write)
 *    @returns array [state, key, value]
-*    @description make change to config file (by default it's `bc-config.json` located in user's Document folder)
 */
 async function storageHandler( { state, key, value }, password) {
     // [state]: [0: read || 1: write || 2: remove] (kinda like permission number in linux)
     // ^^ [0: write:: required key, value] (fn would return true/false)
     // ^^ [0: read:: required key] (fn would return object of the requested key)
-    // password: user key for decryption
 
     let currentJSON = {
-        "encryption": {
-            "isEnforced": [], // index is 1, know if entry on each key is required to use password
-            "publicPGP": '' // public pgp for encrypt/decrypt (require user's password to actually use)
-        }, // (why the fuck do anyone need to enforce encryption policy on setting???)
-        "local_cred": [], // 0: personal open cloud, 1: personal _ROBLOSECURE, 2: dummy open cloud, 3: discord bot token
-        "setting": {
-            "ui:darkMode": true,
-            "ui:hideAtStartup": true,
-
-            "service:runAtStartup": false,
-            "service:updateTiming": 10, // in second
-
-            "notification:allowedNotification": true,
-        }
+        security: {
+            masterPassword: {
+                hash: '', // linked master password, passed as string
+                metadata: '', // metadata of the encryption
+                isEnforced: true // if value within 'security' is required to encrypt
+            },
+            credentials: {
+                personalOpenCloud: '', // personal open cloud
+                personalRobloSecure: '', // personal _ROBLOSECURE
+                dummyOpenCloud: '', // dummy open cloud
+                discordBotToken: '' // discord bot token
+            }
+        },
+        settings: {
+            ui: {
+                darkMode: true,
+                hideAtStartup: true
+            },
+            service: {
+                runAtStartup: false,
+                updateTiming: 600 // in milliseconds
+            },
+            notification: {
+                allowedNotification: true
+            },
+            worker: {
+                onExternalSystem: false
+            }
+        },
+        version: 0
     }
 
     // console.log(!existsSync(fileName))
-    !existsSync(fileName) ?
-        finalWriteToFile() :
+    !existsSync(fileName) ? // first time file creation (master password would be linked)
+        await firstTimeSetup() :
         // @ts-ignore
         currentJSON = JSON.parse(readFileSync(fileName, 'utf8'));
 
@@ -74,6 +89,68 @@ async function storageHandler( { state, key, value }, password) {
     }
 
     returns = readPerRequest(key)
+
+    
+    
+    /**
+     * encrypt/decrypt selected storage's key
+    *    @param state: number- state of the function (0: encrypt/ 1: decrypt)
+    *    @param password: string- master password input
+    *    @param data: string- value to went through encryption
+    *    @returns false | string
+    */
+    async function enforceSecurity(state, password, data) {
+        if (currentJSON.security.masterPassword.isEnforced) {
+            if (await verifyMasterPassword(password) === false) {
+                throw new Error('master password is incorrect')
+            }
+
+            if (state === 0) {
+                return encrypt(data, password)
+            } else {
+                return decrypt(data, password)
+            }
+        } else {
+            console.warn('security policy isnt enabled, skipping enforceSecurity step')
+        }
+
+        
+        function encrypt(text, password) {
+            const key = crypto.createHash('sha256').update(password).digest();
+            const iv = currentJSON.security.masterPassword.metadata !== '' ? currentJSON.security.masterPassword.metadata : crypto.randomBytes(16);
+        
+            const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+            const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+        
+            currentJSON.security.masterPassword.metadata = iv.toString('hex');
+            return encrypted.toString('hex')
+        }
+
+
+        function decrypt(encrypted, password) {
+            const key = crypto.createHash('sha256').update(password).digest();
+            const iv = Buffer.from(currentJSON.security.masterPassword.metadata, 'hex');
+            const encryptedText = Buffer.from(encrypted, 'hex');
+        
+            const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+            const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
+        
+            return decrypted.toString('utf8');
+        }
+        
+    }
+
+    async function verifyMasterPassword(input) {
+        return bcrypt.compare(input, currentJSON.security.masterPassword.hash)
+    }
+
+    async function firstTimeSetup(master) {
+        const salt = await bcrypt.genSalt(10)
+        const hash = await bcrypt.hash(master, salt)
+
+        currentJSON.security.masterPassword.hash = hash
+        finalWriteToFile()
+    }
 
     function finalWriteToFile() {
         // console.log(currentJSON) // DEBUG
