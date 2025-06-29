@@ -20,6 +20,8 @@ async function storageHandler( { state, key, value }, password) {
     // ^^ [0: write:: required key, value] (fn would return true/false)
     // ^^ [0: read:: required key] (fn would return object of the requested key)
 
+    throw new Error('feature not ready... yet! (do not use)')
+
     let currentJSON = {
         security: {
             masterPassword: {
@@ -55,16 +57,27 @@ async function storageHandler( { state, key, value }, password) {
 
     // console.log(!existsSync(fileName))
     !existsSync(fileName) ? // first time file creation (master password would be linked)
-        await firstTimeSetup() :
+        await firstTimeSetup('admin') : // LOL (yes i know its not ideal, but its temporaily
         // @ts-ignore
         currentJSON = JSON.parse(readFileSync(fileName, 'utf8'));
 
         console.log(currentJSON) // DEBUG
 
-    let readPerRequest = (requestedKey) => { // getkey
-        const finalValue = currentJSON[requestedKey]
-        if (finalValue) {
-            return finalValue
+    const isEnforced = currentJSON.security.masterPassword.isEnforced
+
+
+    let readPerRequest = async (requestedKey) => { // getkey
+        let currentVal = currentJSON[requestedKey]
+
+        if (requestedKey === 'security' && isEnforced) {
+            let tempData = Object.entries(currentVal.credentials)
+            for (let i = 0; i < tempData.length; i++) {
+                tempData[i][1] = await enforceSecurity()
+            }
+        } 
+
+        if (currentVal) {
+            return currentVal
         } else {
             return false
         } 
@@ -79,6 +92,9 @@ async function storageHandler( { state, key, value }, password) {
             throw new Error('unable to get value, ' + err)
         })
     } else if (state === 1) { // write
+
+        
+
         currentJSON.key = value
         finalWriteToFile()
         
@@ -100,18 +116,14 @@ async function storageHandler( { state, key, value }, password) {
     *    @returns false | string
     */
     async function enforceSecurity(state, password, data) {
-        if (currentJSON.security.masterPassword.isEnforced) {
-            if (await verifyMasterPassword(password) === false) {
-                throw new Error('master password is incorrect')
-            }
+        if (await verifyMasterPassword(password) === false) {
+            throw new Error('master password is incorrect')
+        }
 
-            if (state === 0) {
-                return encrypt(data, password)
-            } else {
-                return decrypt(data, password)
-            }
+        if (state === 0) {
+            return encrypt(data, password)
         } else {
-            console.warn('security policy isnt enabled, skipping enforceSecurity step')
+            return decrypt(data, password)
         }
 
         

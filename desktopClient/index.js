@@ -2,6 +2,7 @@ const { default: axios, create, Axios } = require("axios");
 // const { error } = require("console");
 // const { createReadStream } = require("fs");
 const { app, BrowserWindow, session, screen, shell } = require("electron");
+const startTray = require('./trayMenu')
 const path = require("path");
 require('dotenv').config({ path: path.resolve(__dirname, '../config.env') });
 // const wanakana = require('wanakana'); // BABABABABA SHAME ON YOU @ROBLOX
@@ -26,6 +27,8 @@ const preHeader = axios.create({
 })
 
 let personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken;
+
+let errorArray = []
 
 
 async function fillCredential() {
@@ -69,25 +72,25 @@ function randomString(length) { // shamelessly stolen off stackoverflow (xoxo @ 
     return result;
 }
 
-async function getRobloxPlayer(personalId, dummyId) {
-    const idArgs = [personalId, dummyId];
-    return idArgs.map(e => {
-        let url;
+// async function getRobloxPlayer(personalId, dummyId) {
+//     const idArgs = [personalId, dummyId];
+//     return idArgs.map(e => {
+//         let url;
 
-        setTimeout(() => {}, requestTimingRate);
+//         setTimeout(() => {}, requestTimingRate);
         
-        if (e) {
-            url = `${robloxGatewayURL}/users/${e}`;
-            preHeader.get(url, {
-                method: 'GET'
-            })
-            .then(data => {
-                console.log(data.data)
-            })
-            return e;
-        }        
-    });
-}
+//         if (e) {
+//             url = `${robloxGatewayURL}/users/${e}`;
+//             preHeader.get(url, {
+//                 method: 'GET'
+//             })
+//             .then(data => {
+//                 console.log(data.data)
+//             })
+//             return e;
+//         }        
+//     });
+// }
 
 // getRobloxPlayer(126722907, false)
 
@@ -116,7 +119,7 @@ async function getRobloxPlayer(personalId, dummyId) {
 *    ^ behaviour change with different type (0: direct change into main title ; 1: make change to description with newline)
 *
 *    @param value: string- the text value that would be changed
-*    @returns boolean- based on open cloud action
+*    @returns object: json returned from roblox's server
 */
 async function changePlaceData({universeId, placeId}, userType, value) {
     if (
@@ -166,12 +169,13 @@ async function changePlaceData({universeId, placeId}, userType, value) {
                 "serverSize": 1
             })
             .then(res => {
-                console.log(res.status, res.statusText)
+                // console.log(res.status, res.statusText)
+                res
                 // res.data
             })
             .catch(err => { throw new Error("Error in changing displayName of place:" + err.response.statusText)});
         case 1: // dummy (make change into dummy's place description with \n)
-            const newlineValue = async() => { // split, newline for each text (return string)
+            const newlineValue = async() => { // split newline for each text (return string)
                 let a = ''
                 value.split(' ').forEach(val => {
                     a += `${val}\u000A`
@@ -189,7 +193,7 @@ async function changePlaceData({universeId, placeId}, userType, value) {
                     "Content-Type": "application/json"
                 }
             })
-            .then(res => res.data)
+            .then(res => res)
             .catch(err => { throw new Error("Error in changing description of place:" + err) })
     }   
 }
@@ -511,40 +515,98 @@ let currentActivity = async() => {
 // @ts-ignore
 let debounceTiming = Date.now()
 const typePretext = ['Playing', 'Streaming', 'Listening to', 'Watching']
+const cooldownUpdate = 300;
+
+const musicPlatformBypass = { // TODO: seperate this as its own list in the future
+    "Spotify": "Sptfy",
+    "Apple Music": " Music",
+    "YouTube Music": "YMusic",
+    "SoundCloud": "SCloud",
+    "Amazon Music": "AMznMusic",
+    "Tidal": "Tidal",
+    "Deezer": "Deezer",
+    "iHeartRadio": "iHeart",
+    "Bandcamp": "Bcamp"
+}
+
+async function createFinalRPC(onRetry) {
+    if (typeof onRetry !== 'boolean') {
+        catchException(1, 'incorrect type for onRetry', 'createFinalRPC')
+        throw new Error('incorrect type for onRetry')
+    }
+
+    let activityData
+    let finalRPC = ''
+    activityData = await currentActivity()
+    // console.log(activityData[1])
+    // console.log(Object.keys(activityData).length)
+    // return
+
+    let currentSeek = 0
+    for (const key in activityData) {
+        if (activityData.hasOwnProperty(key)) {
+            // console.log(activityData[key].type); break
+            if (activityData[key].type == 4) {false}
+            else if (activityData[key].type === 2) { // listening to + music title + on (spotify 100%)
+                finalRPC += currentSeek > 0 ?
+                    `${typePretext[activityData[key].type]} ${activityData[key].data[1]} ;` :
+                    `${typePretext[activityData[key].type]} ${activityData[key].data[1]}`
+                finalRPC += onRetry ?
+                    `on ${musicPlatformBypass[activityData[key].data[0]]}` :
+                    `on ${activityData[key].data[0]}`
+            } else { // playing + game
+                finalRPC += currentSeek > 0 ?
+                    `${typePretext[activityData[key].type]} ${activityData[key].data[1]} ;` :
+                    `${typePretext[activityData[key].type]} ${activityData[key].data[1]}`
+            }
+            currentSeek += 1
+        }
+    }
+    // console.log(finalRPC)
+    return finalRPC
+}
+
 client.on('presenceUpdate', async (oldActivity, newActivity) => {
     let activityData
-	if (newActivity.userId === targetMemberId && debounceTiming + 300 <= Date.now() ) {
-        let finalRPC = ''
-		activityData = await currentActivity()
-        // console.log(activityData[1])
-        // console.log(Object.keys(activityData).length)
-        // return
-        for (const key in activityData) {
-            if (activityData.hasOwnProperty(key)) {
-                // console.log(activityData[key].type); break
-                if (activityData[key].type == 4) {false}
-                else if (activityData[key].type === 2) { // listening to (spotify 100%)
-                    finalRPC += activityData[key].data[0] === "Spotify" ? `${typePretext[activityData[key].type]} ${activityData[key].data[1]} on "Sptfy"` : `${typePretext[activityData[key].type]} ${activityData[key].data[1]} on ${activityData[key].data[0]}`
-                } else {
-                    finalRPC += `${typePretext[activityData[key].type]} ${activityData[key].data[1]}`
-                }
+	if (newActivity.userId === targetMemberId && debounceTiming + cooldownUpdate <= Date.now() ) {
+        let finalRPC = await createFinalRPC(false)
+
+        // send to dummy's description for moderation check
+        changePlaceData({universeId: 7864197053, placeId:91380951984502}, 1, finalRPC)
+        .then(res => {
+            if (!res) {
+                // todo: pull description of the place to determine filtered text, then replace that in finalRPC
             }
-        }
-        console.log(finalRPC)
+        })
         
-        checkForProfanity('example message') // [response.data.isProfanity, response.data.flaggedFor]
+        
+        // send to personal account's place name (final)
+        checkForProfanity(finalRPC) // [response.data.isProfanity, response.data.flaggedFor]
         .then(result => {
             console.log(result)
             if (result[0] == true) {
-                console.error('profanity catched, since its 3am right now, i dont want to deal anything, and i want to have a proof of concept asap so ill return -1 so the pushToRoblox wont do anything')
+                catchException(1, "profanity detected, it's 3am and i'm too tired to deal with this. Returning -1 to prevent pushToRoblox.", 'presenceUpdate-checkForProfanity');
                 finalRPC = ''
             }
         })
 
 
-        if (finalRPC) {
-            await changePlaceData({universeId: 7864197053, placeId:91380951984502}, 0, finalRPC)
-            joinRoblox(Number(placeIds.placeId))
+        if (finalRPC) { // since sometimes roblox's filter system is inconsistent between dummy and personal account
+            changePlaceData({universeId: 7864197053, placeId: 91380951984502}, 0, finalRPC)
+            .then(async (result) => {
+                if (!result) {
+                    finalRPC = await createFinalRPC(true);
+                    // return changePlaceData({universeId: 7864197053, placeId: 91380951984502}, 0, finalRPC);
+                }
+            })
+            .catch((error) => {
+                // console.error("Error updating place data:", error);
+                catchException(1, 'Error updating place data' + error, 'presenceUpdate-finalRPC-changePlaceData')
+            });
+            
+            setTimeout(() => {
+                joinRoblox(Number(placeIds.placeId))
+            }, 1000);
         }
 
         debounceTiming = Date.now()
@@ -572,17 +634,38 @@ function joinRoblox(placeId) {
     }
 }
 
+/**
+ *   Catch and log exceptions into an array (`errorArray`)
+*    @param type: number- type of exception (0: fatal, 1: error, 2: warning)
+*    @param string: string- body of the error
+*    @param location: string- location of the error (optional)
+*/
+function catchException(type, string, location) {
+    if (typeof type === 'number' && string) {
+        errorArray.push([type, string, location, Date.now()]);
+    }
+}
+
 // joinRoblox(91380951984502)
 
 
 async function initializeFeature([discordUserId, robloxPersonalUserId, robloxDummyId], [discordToken], [robloxExperienceId]) {
-    console.log('running')
-    // hydrate credentials from localstorage
-    if (await fillCredential()) {
-        // joinRoblox(Number(placeIds.placeId))
-        let userActivities = startDiscordGateway()
-        // console.log(userActivities)
+    // console.log('running')
+    if (![personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken, placeIds.placeId, placeIds.universeId].every(Boolean)) {
+        catchException(0, 'data(s) integrity got wee-a-bit-doozy, please check!', 'initializeFeature')
+        // return false
     }
+    app.whenReady().then(() => {
+
+        startTray()
+
+        // if (await fillCredential()) {
+        //     // joinRoblox(Number(placeIds.placeId))
+        //     let userActivities = startDiscordGateway()
+        //     // console.log(userActivities)
+        // }
+
+    })
 
     // check for each value
     // if (![personalOCCredential, personal_ROBLOSECURITYCredential, dummyOCCredential, discordBotToken, placeIds.placeId, placeIds.universeId].every(Boolean)) {
@@ -601,27 +684,3 @@ initializeFeature([1, 1, 1], [1], [1]);
 (async() => { 
     console.log('hi');
 })
-
-// when making http request, please include "x-api-key" as {process.env.PERSONAL_OPENAPI} in headers for authorization
-
-// verify each arguments' (users, experience) type ++++++
-// verify each arguments' (users, experience) validity using API ++++++
-// check if user has joined the designated experience ++++++
-// add login feature for user (personal account, dummy account) ++++++
-// create api key for dummy account ++++++
-// ^^^ encrypt and save locally with json (wait until a poc is done)
-// send to profanity checker (censor if needed) ++++++
-// establish connection to user's Discord (for activities), returns change once updated ++++++
-// process each activities (music, game, screen sharing, custom rpc...) ++++++
-// send out processed data to dummy's experience description
-// send out update to place's name in experience (directly on start place)
-// use associated URL "roblox://placeID=XXXXXX" for sending player around places
-
-// TODO:
-// add check if experience/universe's creator is the same as "robloxPersonalUserId"
-// add warning if experience's serverSize is more than 1 && not privated
-// store, encrypt saved credential using user-held password?
-// console.log(getRobloxPlace(1, 2))
-// console.log(process.env.PERSONAL_OPENAPI);
-
-// discordGateway.default()
