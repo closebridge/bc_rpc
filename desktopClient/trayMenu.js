@@ -1,7 +1,7 @@
 const { Tray, Menu, nativeImage, app } = require('electron')
 
 function startTray() {
-    const imgPath = 'desktopClient/gui/static/tray'
+    const imgPath = 'desktopClient/gui/tray'
     const iconPath = process.platform === 'win32' ?
         `${imgPath}/icon-tray.ico` :
         `${imgPath}/icon-tray.png`

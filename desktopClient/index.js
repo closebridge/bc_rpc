@@ -180,7 +180,7 @@ async function changePlaceData({universeId, placeId}, userType, value) {
                 });
                 return a;
             }
-            const response = await axios.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`, {
+            return await axios.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`, {
                 "path": `universes/${universeId}/places/${placeId}`,
                 "displayName": 'nil',
                 "description": await newlineValue(),
@@ -190,14 +190,18 @@ async function changePlaceData({universeId, placeId}, userType, value) {
                     "x-api-key": dummyOCCredential,
                     "Content-Type": "application/json"
                 }
-            }).catch(err => { catchException(0, "changing dummy's description returned non 200 (likely due to moderation issue): " + response.status, 'changePlaceData-case 1'); throw new Error("non 200 code error" + err) });
+            })
+            .then(data => {
+                return data.data
+            })
+            .catch(err => { catchException(0, "changing dummy's description returned non 200 (likely due to moderation issue): " + err.status, 'changePlaceData-case 1'); return false})
 
-            return response.status === 200 ? response.data : false;
-    }   
+    }
 }
+
 (async () => {
     await fillCredential();
-    await changePlaceData({universeId: 2505937680, placeId:6661219752}, 1, 'hallo haula hallo!')
+    await changePlaceData({universeId: 2505937680, placeId:6661219752}, 1, 'hallo haula a!')
     .then (data => {console.log(data)})
 })();
 
