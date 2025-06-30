@@ -114,12 +114,10 @@ function randomString(length) { // shamelessly stolen off stackoverflow (xoxo @ 
 /**
 *    @see {@link https://create.roblox.com/docs/cloud/reference/Place#Cloud_UpdatePlace}
 *    @param placeId: number- selected place id to make changes to
-*    @param userType: number- type of user to make change (0: personal ; 1: dummy account)
-*    
-*    ^ behaviour change with different type (0: direct change into main title ; 1: make change to description with newline)
+*    @param userType: number- type of user to make change (0: personal ; 1: dummy account) (behaviour change with different type (0: direct change into main title ; 1: make change to description with newline))
 *
 *    @param value: string- the text value that would be changed
-*    @returns object: json returned from roblox's server
+*    @returns object | false : json returned from roblox's server (or 400 due to moderated problem)
 */
 async function changePlaceData({universeId, placeId}, userType, value) {
     if (
@@ -170,7 +168,7 @@ async function changePlaceData({universeId, placeId}, userType, value) {
             })
             .then(res => {
                 // console.log(res.status, res.statusText)
-                res
+                return res.data
                 // res.data
             })
             .catch(err => { throw new Error("Error in changing displayName of place:" + err.response.statusText)});
@@ -182,27 +180,26 @@ async function changePlaceData({universeId, placeId}, userType, value) {
                 });
                 return a;
             }
-            return axios.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`,{
+            const response = await axios.patch(`${robloxGatewayURL}/universes/${universeId}/places/${placeId}`, {
                 "path": `universes/${universeId}/places/${placeId}`,
                 "displayName": 'nil',
                 "description": await newlineValue(),
                 "serverSize": 1
-            },
-                {headers: {
+            }, {
+                headers: {
                     "x-api-key": dummyOCCredential,
                     "Content-Type": "application/json"
                 }
-            })
-            .then(res => res)
-            .catch(err => { throw new Error("Error in changing description of place:" + err) })
+            }).catch(err => { catchException(0, "changing dummy's description returned non 200 (likely due to moderation issue): " + response.status, 'changePlaceData-case 1'); throw new Error("non 200 code error" + err) });
+
+            return response.status === 200 ? response.data : false;
     }   
 }
-// (async () => {
-//     // console.log('wait0')
-//     await fillCredential();
-//     // console.log('WAIT1')
-//     changePlaceData({universeId: 7864197053, placeId:91380951984502}, 0, 'hallo guis :D')
-// })();
+(async () => {
+    await fillCredential();
+    await changePlaceData({universeId: 2505937680, placeId:6661219752}, 1, 'hallo haula hallo!')
+    .then (data => {console.log(data)})
+})();
 
 async function notStealingUsersRobloxCredential(accountType) {
     //accountType = 0: personal account; 1: dummy account; 2: temporary login
@@ -680,7 +677,8 @@ async function initializeFeature([discordUserId, robloxPersonalUserId, robloxDum
     
 };
 
-initializeFeature([1, 1, 1], [1], [1]);
-(async() => { 
-    console.log('hi');
-})
+// initializeFeature([1, 1, 1], [1], [1]);
+
+// (async() => { 
+//     console.log('hi');
+// })
